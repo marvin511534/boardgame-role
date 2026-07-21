@@ -2,14 +2,22 @@ const express = require("express");
 const http = require("http");
 const path = require("path");
 const os = require("os");
+const crypto = require("crypto");
 const { Server } = require("socket.io");
 const QRCode = require("qrcode");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+const io = new Server(server, {
+    pingTimeout: 30000,
+    pingInterval: 25000
+});
 
 const PORT = process.env.PORT || 3000;
+
+/* 房主斷線後，房間保留 2 分鐘 */
+const HOST_RECONNECT_GRACE_MS = 2 * 60 * 1000;
 
 const rooms = {};
 
@@ -34,6 +42,16 @@ function getLocalIpAddress() {
     return "localhost";
 }
 
+function getBaseUrl() {
+    if (process.env.RENDER_EXTERNAL_URL) {
+        return process.env.RENDER_EXTERNAL_URL;
+    }
+
+    const localIp = getLocalIpAddress();
+
+    return `http://${localIp}:${PORT}`;
+}
+
 function createRoomCode() {
     const characters =
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -53,6 +71,10 @@ function createRoomCode() {
     } while (rooms[roomCode]);
 
     return roomCode;
+}
+
+function createReconnectToken() {
+    return crypto.randomBytes(24).toString("hex");
 }
 
 function getRoleSettings(playerCount) {
@@ -130,6 +152,13 @@ function shuffleArray(array) {
     return shuffledArray;
 }
 
+function getPublicPlayers(room) {
+    return room.players.map((player) => ({
+        name: player.name,
+        isHost: player.isHost
+    }));
+}
+
 function sendPlayerList(roomCode) {
     const room = rooms[roomCode];
 
@@ -138,14 +167,56 @@ function sendPlayerList(roomCode) {
     }
 
     io.to(roomCode).emit("playerListUpdated", {
-        players: room.players.map((player) => ({
-            name: player.name,
-            isHost: player.isHost
-        })),
-
+        players: getPublicPlayers(room),
         playerCount: room.playerCount,
-        gameStarted: room.gameStarted
+        gameStarted: room.gameStarted,
+        hostConnected: room.hostConnected
     });
+}
+
+function clearHostCloseTimer(room) {
+    if (room.hostCloseTimer) {
+        clearTimeout(room.hostCloseTimer);
+        room.hostCloseTimer = null;
+    }
+}
+
+function closeRoom(roomCode) {
+    const room = rooms[roomCode];
+
+    if (!room) {
+        return;
+    }
+
+    clearHostCloseTimer(room);
+
+    io.to(roomCode).emit("roomClosed");
+
+    delete rooms[roomCode];
+}
+
+function scheduleHostRoomClose(roomCode) {
+    const room = rooms[roomCode];
+
+    if (!room) {
+        return;
+    }
+
+    clearHostCloseTimer(room);
+
+    room.hostCloseTimer = setTimeout(() => {
+        const currentRoom = rooms[roomCode];
+
+        if (!currentRoom) {
+            return;
+        }
+
+        if (currentRoom.hostConnected) {
+            return;
+        }
+
+        closeRoom(roomCode);
+    }, HOST_RECONNECT_GRACE_MS);
 }
 
 function assignRoles(roomCode) {
@@ -155,27 +226,33 @@ function assignRoles(roomCode) {
         return false;
     }
 
-    const roleSettings =
-        getRoleSettings(room.playerCount);
+    const roles = getRoleSettings(
+        room.playerCount
+    );
 
-    if (!roleSettings) {
+    if (!roles) {
         return false;
     }
 
     const shuffledRoles =
-        shuffleArray(roleSettings);
+        shuffleArray(roles);
 
     room.gameStarted = true;
 
     room.players.forEach((player, index) => {
         player.role = shuffledRoles[index];
 
-        io.to(player.id).emit("roleAssigned", {
-            role: player.role,
-            playerName: player.name,
-            roomCode,
-            isHost: player.isHost
-        });
+        if (player.id) {
+            io.to(player.id).emit(
+                "roleAssigned",
+                {
+                    role: player.role,
+                    playerName: player.name,
+                    roomCode,
+                    isHost: player.isHost
+                }
+            );
+        }
     });
 
     return true;
@@ -210,7 +287,8 @@ io.on("connection", (socket) => {
 
             if (!normalizedHostName) {
                 socket.emit("roomError", {
-                    message: "請輸入房主名稱"
+                    message:
+                        "請輸入房主名稱"
                 });
 
                 return;
@@ -225,38 +303,13 @@ io.on("connection", (socket) => {
                 return;
             }
 
-            const roomCode = createRoomCode();
+            const roomCode =
+                createRoomCode();
 
-            rooms[roomCode] = {
-                hostId: socket.id,
-                playerCount:
-                    normalizedPlayerCount,
-                gameStarted: false,
+            const hostToken =
+                createReconnectToken();
 
-                players: [
-                    {
-                        id: socket.id,
-                        name: normalizedHostName,
-                        role: null,
-                        isHost: true
-                    }
-                ]
-            };
-
-            socket.join(roomCode);
-
-            let baseUrl;
-
-            if (process.env.RENDER_EXTERNAL_URL) {
-                baseUrl =
-                    process.env.RENDER_EXTERNAL_URL;
-            } else {
-                const localIp =
-                    getLocalIpAddress();
-
-                baseUrl =
-                    `http://${localIp}:${PORT}`;
-            }
+            const baseUrl = getBaseUrl();
 
             const joinUrl =
                 `${baseUrl}/?room=${roomCode}`;
@@ -271,12 +324,39 @@ io.on("connection", (socket) => {
                         }
                     );
 
+                rooms[roomCode] = {
+                    hostId: socket.id,
+                    hostToken,
+                    hostConnected: true,
+                    hostCloseTimer: null,
+
+                    playerCount:
+                        normalizedPlayerCount,
+
+                    gameStarted: false,
+
+                    joinUrl,
+                    qrCodeDataUrl,
+
+                    players: [
+                        {
+                            id: socket.id,
+                            name: normalizedHostName,
+                            role: null,
+                            isHost: true
+                        }
+                    ]
+                };
+
+                socket.join(roomCode);
+
                 socket.emit("roomCreated", {
                     roomCode,
                     playerCount:
                         normalizedPlayerCount,
                     hostName:
                         normalizedHostName,
+                    hostToken,
                     joinUrl,
                     qrCodeDataUrl
                 });
@@ -288,13 +368,117 @@ io.on("connection", (socket) => {
                     error
                 );
 
-                delete rooms[roomCode];
-
                 socket.emit("roomError", {
                     message:
                         "QR Code 產生失敗"
                 });
             }
+        }
+    );
+
+    /*
+    房主重新連線：
+    手機鎖屏或切換 App 後，Socket ID 會改變，
+    所以使用 hostToken 恢復房主身份。
+    */
+    socket.on(
+        "reconnectHost",
+        ({ roomCode, hostToken }) => {
+            const normalizedRoomCode =
+                String(roomCode || "")
+                    .trim()
+                    .toUpperCase();
+
+            const normalizedToken =
+                String(hostToken || "").trim();
+
+            const room =
+                rooms[normalizedRoomCode];
+
+            if (!room) {
+                socket.emit(
+                    "hostReconnectFailed",
+                    {
+                        message:
+                            "房間已不存在或已逾時關閉"
+                    }
+                );
+
+                return;
+            }
+
+            if (
+                !normalizedToken ||
+                room.hostToken !== normalizedToken
+            ) {
+                socket.emit(
+                    "hostReconnectFailed",
+                    {
+                        message:
+                            "無法驗證房主身份"
+                    }
+                );
+
+                return;
+            }
+
+            clearHostCloseTimer(room);
+
+            room.hostId = socket.id;
+            room.hostConnected = true;
+
+            const hostPlayer =
+                room.players.find(
+                    (player) =>
+                        player.isHost
+                );
+
+            if (hostPlayer) {
+                hostPlayer.id = socket.id;
+            }
+
+            socket.join(normalizedRoomCode);
+
+            socket.emit("hostReconnected", {
+                roomCode:
+                    normalizedRoomCode,
+
+                playerCount:
+                    room.playerCount,
+
+                players:
+                    getPublicPlayers(room),
+
+                gameStarted:
+                    room.gameStarted,
+
+                hostName:
+                    hostPlayer
+                        ? hostPlayer.name
+                        : "",
+
+                hostRole:
+                    hostPlayer
+                        ? hostPlayer.role
+                        : null,
+
+                joinUrl:
+                    room.joinUrl,
+
+                qrCodeDataUrl:
+                    room.qrCodeDataUrl
+            });
+
+            io.to(normalizedRoomCode).emit(
+                "hostConnectionChanged",
+                {
+                    connected: true
+                }
+            );
+
+            sendPlayerList(
+                normalizedRoomCode
+            );
         }
     );
 
@@ -314,7 +498,17 @@ io.on("connection", (socket) => {
 
             if (!room) {
                 socket.emit("roomError", {
-                    message: "找不到這個房間"
+                    message:
+                        "找不到這個房間"
+                });
+
+                return;
+            }
+
+            if (!room.hostConnected) {
+                socket.emit("roomError", {
+                    message:
+                        "房主目前離線，請稍後再試"
                 });
 
                 return;
@@ -354,7 +548,8 @@ io.on("connection", (socket) => {
                 room.playerCount
             ) {
                 socket.emit("roomError", {
-                    message: "房間人數已滿"
+                    message:
+                        "房間人數已滿"
                 });
 
                 return;
@@ -440,15 +635,6 @@ io.on("connection", (socket) => {
                 socket.emit("hostError", {
                     message:
                         "只有房主可以開始遊戲"
-                });
-
-                return;
-            }
-
-            if (room.gameStarted) {
-                socket.emit("hostError", {
-                    message:
-                        "遊戲已經開始"
                 });
 
                 return;
@@ -584,13 +770,7 @@ io.on("connection", (socket) => {
                 return;
             }
 
-            io.to(normalizedRoomCode).emit(
-                "roomClosed"
-            );
-
-            delete rooms[
-                normalizedRoomCode
-            ];
+            closeRoom(normalizedRoomCode);
         }
     );
 
@@ -606,12 +786,37 @@ io.on("connection", (socket) => {
         ) {
             const room = rooms[roomCode];
 
+            /*
+            房主斷線：
+            不立即刪除房間，改成保留 2 分鐘。
+            */
             if (room.hostId === socket.id) {
+                room.hostConnected = false;
+                room.hostId = null;
+
+                const hostPlayer =
+                    room.players.find(
+                        (player) =>
+                            player.isHost
+                    );
+
+                if (hostPlayer) {
+                    hostPlayer.id = null;
+                }
+
                 io.to(roomCode).emit(
-                    "roomClosed"
+                    "hostConnectionChanged",
+                    {
+                        connected: false,
+                        graceSeconds:
+                            HOST_RECONNECT_GRACE_MS /
+                            1000
+                    }
                 );
 
-                delete rooms[roomCode];
+                scheduleHostRoomClose(
+                    roomCode
+                );
 
                 continue;
             }
@@ -619,7 +824,8 @@ io.on("connection", (socket) => {
             const playerIndex =
                 room.players.findIndex(
                     (player) =>
-                        player.id === socket.id
+                        player.id === socket.id &&
+                        !player.isHost
                 );
 
             if (playerIndex !== -1) {

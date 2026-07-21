@@ -1,4 +1,9 @@
-const socket = io();
+const socket = io({
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000
+});
 
 /* 頁面 */
 const homePage =
@@ -179,6 +184,17 @@ let currentPlayerTotal = 0;
 let isHost = false;
 let gameHasStarted = false;
 
+/* 房主恢復資料 */
+const savedHostRoomCode =
+    localStorage.getItem(
+        "boardgameHostRoomCode"
+    );
+
+const savedHostToken =
+    localStorage.getItem(
+        "boardgameHostToken"
+    );
+
 /* 身份設定 */
 const roleSettings = {
     4: [
@@ -249,6 +265,31 @@ function showPage(pageToShow) {
     });
 }
 
+function saveHostSession(
+    roomCode,
+    hostToken
+) {
+    localStorage.setItem(
+        "boardgameHostRoomCode",
+        roomCode
+    );
+
+    localStorage.setItem(
+        "boardgameHostToken",
+        hostToken
+    );
+}
+
+function clearHostSession() {
+    localStorage.removeItem(
+        "boardgameHostRoomCode"
+    );
+
+    localStorage.removeItem(
+        "boardgameHostToken"
+    );
+}
+
 function countRoles(roles) {
     const roleCounts = {};
 
@@ -300,6 +341,22 @@ function updateStartButton() {
     }
 }
 
+function renderPlayerList(players) {
+    playerList.innerHTML = "";
+
+    players.forEach((player, index) => {
+        const listItem =
+            document.createElement("li");
+
+        listItem.textContent =
+            player.isHost
+                ? `${index + 1}. ${player.name}（房主）`
+                : `${index + 1}. ${player.name}`;
+
+        playerList.appendChild(listItem);
+    });
+}
+
 function displayRole(role) {
     assignedRole = role;
 
@@ -308,25 +365,21 @@ function displayRole(role) {
 
     if (role === "主公") {
         roleIcon.textContent = "👑";
-
         roleName.classList.add(
             "role-lord"
         );
     } else if (role === "忠臣") {
         roleIcon.textContent = "🛡️";
-
         roleName.classList.add(
             "role-loyalist"
         );
     } else if (role === "反賊") {
         roleIcon.textContent = "⚔️";
-
         roleName.classList.add(
             "role-rebel"
         );
     } else {
         roleIcon.textContent = "🕵️";
-
         roleName.classList.add(
             "role-spy"
         );
@@ -364,7 +417,6 @@ createRoomButton.addEventListener(
             playerCount: Number(
                 playerCountSelect.value
             ),
-
             hostName
         });
     }
@@ -509,6 +561,23 @@ socket.on("connect", () => {
         "已連線到伺服器：",
         socket.id
     );
+
+    const roomCode =
+        localStorage.getItem(
+            "boardgameHostRoomCode"
+        );
+
+    const hostToken =
+        localStorage.getItem(
+            "boardgameHostToken"
+        );
+
+    if (roomCode && hostToken) {
+        socket.emit("reconnectHost", {
+            roomCode,
+            hostToken
+        });
+    }
 });
 
 socket.on("roomCreated", (data) => {
@@ -530,6 +599,11 @@ socket.on("roomCreated", (data) => {
 
     currentPlayerTotal = 1;
 
+    saveHostSession(
+        data.roomCode,
+        data.hostToken
+    );
+
     hostRoomCode.textContent =
         data.roomCode;
 
@@ -545,6 +619,66 @@ socket.on("roomCreated", (data) => {
     updateStartButton();
     showPage(hostRoomPage);
 });
+
+socket.on("hostReconnected", (data) => {
+    isHost = true;
+
+    currentRoomCode =
+        data.roomCode;
+
+    currentPlayerName =
+        data.hostName;
+
+    currentPlayerCount =
+        data.playerCount;
+
+    currentPlayerTotal =
+        data.players.length;
+
+    gameHasStarted =
+        data.gameStarted;
+
+    assignedRole =
+        data.hostRole || "";
+
+    hostRoomCode.textContent =
+        data.roomCode;
+
+    qrCodeImage.src =
+        data.qrCodeDataUrl;
+
+    joinUrl.textContent =
+        data.joinUrl;
+
+    playerProgress.textContent =
+        `${data.players.length} / ${data.playerCount}`;
+
+    renderPlayerList(data.players);
+
+    hostMessage.textContent =
+        "房主已重新連線";
+
+    if (
+        data.gameStarted &&
+        data.hostRole
+    ) {
+        displayRole(data.hostRole);
+    } else {
+        updateStartButton();
+        showPage(hostRoomPage);
+    }
+});
+
+socket.on(
+    "hostReconnectFailed",
+    (data) => {
+        clearHostSession();
+
+        if (isHost) {
+            alert(data.message);
+        }
+    }
+);
 
 socket.on("joinedRoom", (data) => {
     joinRoomButton.disabled = false;
@@ -585,31 +719,27 @@ socket.on(
         playerProgress.textContent =
             `${data.players.length} / ${data.playerCount}`;
 
-        playerList.innerHTML = "";
-
-        data.players.forEach(
-            (player, index) => {
-                const listItem =
-                    document.createElement(
-                        "li"
-                    );
-
-                if (player.isHost) {
-                    listItem.textContent =
-                        `${index + 1}. ${player.name}（房主）`;
-                } else {
-                    listItem.textContent =
-                        `${index + 1}. ${player.name}`;
-                }
-
-                playerList.appendChild(
-                    listItem
-                );
-            }
-        );
+        renderPlayerList(data.players);
 
         if (!data.gameStarted) {
             updateStartButton();
+        }
+    }
+);
+
+socket.on(
+    "hostConnectionChanged",
+    (data) => {
+        if (isHost) {
+            return;
+        }
+
+        if (!data.connected) {
+            waitingMessage.textContent =
+                "房主暫時離線，房間將保留 2 分鐘。";
+        } else {
+            waitingMessage.textContent =
+                "房主已重新連線。";
         }
     }
 );
@@ -714,6 +844,8 @@ socket.on("gameCancelled", (data) => {
 });
 
 socket.on("roomClosed", () => {
+    clearHostSession();
+
     alert("房間已關閉");
 
     window.location.href = "/";
@@ -721,6 +853,11 @@ socket.on("roomClosed", () => {
 
 socket.on("disconnect", () => {
     console.log("與伺服器中斷連線");
+
+    if (isHost) {
+        hostMessage.textContent =
+            "連線中斷，正在嘗試自動恢復……";
+    }
 });
 
 /* QR Code 網址自動填入房號 */
