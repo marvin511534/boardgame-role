@@ -31,8 +31,7 @@
             <h1>桌遊身份抽籤</h1>
 
             <p class="description">
-                建立房間後，朋友可以掃描 QR Code
-                加入並抽取身份。
+                房主也會參加抽籤，玩家總人數包含房主。
             </p>
 
             <div class="section-box">
@@ -40,8 +39,20 @@
                     建立房間
                 </h2>
 
+                <label for="hostNameInput">
+                    房主名稱
+                </label>
+
+                <input
+                    id="hostNameInput"
+                    type="text"
+                    maxlength="12"
+                    autocomplete="off"
+                    placeholder="請輸入你的名稱"
+                >
+
                 <label for="playerCount">
-                    選擇玩家人數
+                    玩家總人數（包含房主）
                 </label>
 
                 <select id="playerCount">
@@ -135,7 +146,7 @@
             class="panel hidden"
         >
             <div class="status-badge">
-                房主模式
+                房主兼玩家
             </div>
 
             <h1>房間建立成功</h1>
@@ -171,18 +182,14 @@
                     id="playerProgress"
                     class="player-progress"
                 >
-                    0 / 0
+                    1 / 0
                 </span>
             </div>
 
             <ul
                 id="playerList"
                 class="player-list"
-            >
-                <li class="empty-player">
-                    等待玩家加入……
-                </li>
-            </ul>
+            ></ul>
 
             <button
                 id="startGameButton"
@@ -217,9 +224,7 @@
             <h1>加入成功</h1>
 
             <div class="info-box">
-                <p>
-                    玩家名稱
-                </p>
+                <p>玩家名稱</p>
 
                 <strong
                     id="waitingPlayerName"
@@ -236,7 +241,7 @@
 
             <p class="description">
                 請等待其他玩家加入，房主開始後，
-                你的身份會顯示在這支手機上。
+                你的身份會顯示在這支裝置上。
             </p>
 
             <div class="loading-dots">
@@ -251,7 +256,7 @@
             ></p>
         </section>
 
-        <!-- 玩家身份畫面 -->
+        <!-- 身份畫面 -->
         <section
             id="rolePage"
             class="panel hidden"
@@ -289,7 +294,7 @@
             </button>
         </section>
 
-        <!-- 身份隱藏畫面 -->
+        <!-- 一般玩家身份隱藏 -->
         <section
             id="roleHiddenPage"
             class="panel hidden"
@@ -301,7 +306,7 @@
             <h1>身份已隱藏</h1>
 
             <p class="description">
-                請將手機放好，準備開始遊戲。
+                請將裝置放好，準備開始遊戲。
             </p>
 
             <button
@@ -312,7 +317,7 @@
             </button>
         </section>
 
-        <!-- 房主遊戲開始畫面 -->
+        <!-- 房主遊戲控制畫面 -->
         <section
             id="hostStartedPage"
             class="panel hidden"
@@ -324,7 +329,7 @@
             <h1>身份分配完成</h1>
 
             <p class="description">
-                所有玩家都已收到自己的身份。
+                所有玩家都已收到身份，包含房主。
             </p>
 
             <div class="info-box">
@@ -336,8 +341,16 @@
             </div>
 
             <button
+                id="hostShowRoleButton"
+                class="secondary-button"
+            >
+                再次查看我的身份
+            </button>
+
+            <button
                 id="restartGameButton"
                 class="primary-button"
+                style="margin-top: 12px;"
             >
                 重新抽取身份
             </button>

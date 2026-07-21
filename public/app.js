@@ -14,89 +14,144 @@ const rolePage =
     document.getElementById("rolePage");
 
 const roleHiddenPage =
-    document.getElementById("roleHiddenPage");
+    document.getElementById(
+        "roleHiddenPage"
+    );
 
 const hostStartedPage =
-    document.getElementById("hostStartedPage");
+    document.getElementById(
+        "hostStartedPage"
+    );
 
-/* 首頁元素 */
+/* 首頁 */
+const hostNameInput =
+    document.getElementById(
+        "hostNameInput"
+    );
+
 const playerCountSelect =
-    document.getElementById("playerCount");
+    document.getElementById(
+        "playerCount"
+    );
 
 const rolePreview =
-    document.getElementById("rolePreview");
+    document.getElementById(
+        "rolePreview"
+    );
 
 const createRoomButton =
-    document.getElementById("createRoomButton");
+    document.getElementById(
+        "createRoomButton"
+    );
 
 const roomCodeInput =
-    document.getElementById("roomCodeInput");
+    document.getElementById(
+        "roomCodeInput"
+    );
 
 const playerNameInput =
-    document.getElementById("playerNameInput");
+    document.getElementById(
+        "playerNameInput"
+    );
 
 const joinRoomButton =
-    document.getElementById("joinRoomButton");
+    document.getElementById(
+        "joinRoomButton"
+    );
 
 const homeMessage =
-    document.getElementById("homeMessage");
+    document.getElementById(
+        "homeMessage"
+    );
 
 /* 房主等待畫面 */
 const hostRoomCode =
-    document.getElementById("hostRoomCode");
+    document.getElementById(
+        "hostRoomCode"
+    );
 
 const qrCodeImage =
-    document.getElementById("qrCodeImage");
+    document.getElementById(
+        "qrCodeImage"
+    );
 
 const joinUrl =
-    document.getElementById("joinUrl");
+    document.getElementById(
+        "joinUrl"
+    );
 
 const playerProgress =
-    document.getElementById("playerProgress");
+    document.getElementById(
+        "playerProgress"
+    );
 
 const playerList =
-    document.getElementById("playerList");
+    document.getElementById(
+        "playerList"
+    );
 
 const startGameButton =
-    document.getElementById("startGameButton");
+    document.getElementById(
+        "startGameButton"
+    );
 
 const closeRoomButton =
-    document.getElementById("closeRoomButton");
+    document.getElementById(
+        "closeRoomButton"
+    );
 
 const hostMessage =
-    document.getElementById("hostMessage");
+    document.getElementById(
+        "hostMessage"
+    );
 
 /* 玩家等待畫面 */
 const waitingPlayerName =
-    document.getElementById("waitingPlayerName");
+    document.getElementById(
+        "waitingPlayerName"
+    );
 
 const waitingRoomCode =
-    document.getElementById("waitingRoomCode");
+    document.getElementById(
+        "waitingRoomCode"
+    );
 
 const waitingMessage =
-    document.getElementById("waitingMessage");
+    document.getElementById(
+        "waitingMessage"
+    );
 
 /* 身份畫面 */
-const roleCard =
-    document.getElementById("roleCard");
-
 const roleIcon =
-    document.getElementById("roleIcon");
+    document.getElementById(
+        "roleIcon"
+    );
 
 const roleName =
-    document.getElementById("roleName");
+    document.getElementById(
+        "roleName"
+    );
 
 const hideRoleButton =
-    document.getElementById("hideRoleButton");
+    document.getElementById(
+        "hideRoleButton"
+    );
 
 const showRoleAgainButton =
     document.getElementById(
         "showRoleAgainButton"
     );
 
-/* 房主開始畫面 */
+/* 房主控制畫面 */
 const startedRoomCode =
-    document.getElementById("startedRoomCode");
+    document.getElementById(
+        "startedRoomCode"
+    );
+
+const hostShowRoleButton =
+    document.getElementById(
+        "hostShowRoleButton"
+    );
 
 const restartGameButton =
     document.getElementById(
@@ -109,16 +164,22 @@ const closeStartedRoomButton =
     );
 
 const startedMessage =
-    document.getElementById("startedMessage");
+    document.getElementById(
+        "startedMessage"
+    );
 
-/* 暫存資料 */
+/* 狀態資料 */
 let currentRoomCode = "";
 let currentPlayerName = "";
 let assignedRole = "";
+
 let currentPlayerCount = 0;
 let currentPlayerTotal = 0;
 
-/* 身份配置 */
+let isHost = false;
+let gameHasStarted = false;
+
+/* 身份設定 */
 const roleSettings = {
     4: [
         "主公",
@@ -210,7 +271,9 @@ function updateRolePreview() {
     );
 
     rolePreview.textContent =
-        countRoles(roleSettings[playerCount]);
+        countRoles(
+            roleSettings[playerCount]
+        );
 }
 
 function resetMessages() {
@@ -225,7 +288,8 @@ function updateStartButton() {
         currentPlayerTotal ===
         currentPlayerCount;
 
-    startGameButton.disabled = !roomIsFull;
+    startGameButton.disabled =
+        !roomIsFull;
 
     if (roomIsFull) {
         startGameButton.textContent =
@@ -240,7 +304,6 @@ function displayRole(role) {
     assignedRole = role;
 
     roleName.textContent = role;
-
     roleName.className = "role-name";
 
     if (role === "主公") {
@@ -282,6 +345,17 @@ createRoomButton.addEventListener(
     () => {
         resetMessages();
 
+        const hostName =
+            hostNameInput.value.trim();
+
+        if (!hostName) {
+            homeMessage.textContent =
+                "請輸入房主名稱";
+
+            hostNameInput.focus();
+            return;
+        }
+
         createRoomButton.disabled = true;
         createRoomButton.textContent =
             "建立中……";
@@ -289,7 +363,9 @@ createRoomButton.addEventListener(
         socket.emit("createRoom", {
             playerCount: Number(
                 playerCountSelect.value
-            )
+            ),
+
+            hostName
         });
     }
 );
@@ -337,13 +413,6 @@ startGameButton.addEventListener(
     () => {
         hostMessage.textContent = "";
 
-        if (!currentRoomCode) {
-            hostMessage.textContent =
-                "房間資料錯誤";
-
-            return;
-        }
-
         startGameButton.disabled = true;
         startGameButton.textContent =
             "分配身份中……";
@@ -351,6 +420,38 @@ startGameButton.addEventListener(
         socket.emit("startGame", {
             roomCode: currentRoomCode
         });
+    }
+);
+
+hideRoleButton.addEventListener(
+    "click",
+    () => {
+        if (isHost) {
+            startedRoomCode.textContent =
+                currentRoomCode;
+
+            showPage(hostStartedPage);
+        } else {
+            showPage(roleHiddenPage);
+        }
+    }
+);
+
+showRoleAgainButton.addEventListener(
+    "click",
+    () => {
+        if (assignedRole) {
+            displayRole(assignedRole);
+        }
+    }
+);
+
+hostShowRoleButton.addEventListener(
+    "click",
+    () => {
+        if (assignedRole) {
+            displayRole(assignedRole);
+        }
     }
 );
 
@@ -366,22 +467,6 @@ restartGameButton.addEventListener(
         socket.emit("restartGame", {
             roomCode: currentRoomCode
         });
-    }
-);
-
-hideRoleButton.addEventListener(
-    "click",
-    () => {
-        showPage(roleHiddenPage);
-    }
-);
-
-showRoleAgainButton.addEventListener(
-    "click",
-    () => {
-        if (assignedRole) {
-            showPage(rolePage);
-        }
     }
 );
 
@@ -431,10 +516,19 @@ socket.on("roomCreated", (data) => {
     createRoomButton.textContent =
         "建立房間";
 
-    currentRoomCode = data.roomCode;
+    isHost = true;
+    gameHasStarted = false;
+
+    currentRoomCode =
+        data.roomCode;
+
+    currentPlayerName =
+        data.hostName;
+
     currentPlayerCount =
         data.playerCount;
-    currentPlayerTotal = 0;
+
+    currentPlayerTotal = 1;
 
     hostRoomCode.textContent =
         data.roomCode;
@@ -446,15 +540,9 @@ socket.on("roomCreated", (data) => {
         data.joinUrl;
 
     playerProgress.textContent =
-        `0 / ${data.playerCount}`;
-
-    playerList.innerHTML =
-        `<li class="empty-player">
-            等待玩家加入……
-        </li>`;
+        `1 / ${data.playerCount}`;
 
     updateStartButton();
-
     showPage(hostRoomPage);
 });
 
@@ -462,6 +550,9 @@ socket.on("joinedRoom", (data) => {
     joinRoomButton.disabled = false;
     joinRoomButton.textContent =
         "加入房間";
+
+    isHost = false;
+    gameHasStarted = false;
 
     currentRoomCode =
         data.roomCode;
@@ -487,37 +578,39 @@ socket.on(
         currentPlayerTotal =
             data.players.length;
 
+        if (!isHost) {
+            return;
+        }
+
         playerProgress.textContent =
             `${data.players.length} / ${data.playerCount}`;
 
-        if (
-            data.players.length === 0
-        ) {
-            playerList.innerHTML =
-                `<li class="empty-player">
-                    等待玩家加入……
-                </li>`;
-        } else {
-            playerList.innerHTML = "";
+        playerList.innerHTML = "";
 
-            data.players.forEach(
-                (player, index) => {
-                    const listItem =
-                        document.createElement(
-                            "li"
-                        );
+        data.players.forEach(
+            (player, index) => {
+                const listItem =
+                    document.createElement(
+                        "li"
+                    );
 
+                if (player.isHost) {
+                    listItem.textContent =
+                        `${index + 1}. ${player.name}（房主）`;
+                } else {
                     listItem.textContent =
                         `${index + 1}. ${player.name}`;
-
-                    playerList.appendChild(
-                        listItem
-                    );
                 }
-            );
-        }
 
-        updateStartButton();
+                playerList.appendChild(
+                    listItem
+                );
+            }
+        );
+
+        if (!data.gameStarted) {
+            updateStartButton();
+        }
     }
 );
 
@@ -528,6 +621,13 @@ socket.on("roleAssigned", (data) => {
     currentPlayerName =
         data.playerName;
 
+    isHost = data.isHost;
+    gameHasStarted = true;
+
+    restartGameButton.disabled = false;
+    restartGameButton.textContent =
+        "重新抽取身份";
+
     displayRole(data.role);
 });
 
@@ -535,26 +635,24 @@ socket.on("gameStarted", (data) => {
     currentRoomCode =
         data.roomCode;
 
+    gameHasStarted = true;
+
     startedRoomCode.textContent =
         data.roomCode;
-
-    restartGameButton.disabled = false;
-    restartGameButton.textContent =
-        "重新抽取身份";
-
-    showPage(hostStartedPage);
 });
 
 socket.on("gameRestarted", (data) => {
     currentRoomCode =
         data.roomCode;
 
-    startedMessage.textContent =
-        "身份已重新分配完成";
+    gameHasStarted = true;
 
     restartGameButton.disabled = false;
     restartGameButton.textContent =
         "重新抽取身份";
+
+    startedMessage.textContent =
+        "身份已重新分配完成";
 });
 
 socket.on("roomError", (data) => {
@@ -599,8 +697,15 @@ socket.on("gameCancelled", (data) => {
     alert(data.message);
 
     assignedRole = "";
+    gameHasStarted = false;
 
-    if (currentPlayerName) {
+    if (isHost) {
+        hostMessage.textContent =
+            data.message;
+
+        showPage(hostRoomPage);
+        updateStartButton();
+    } else {
         waitingMessage.textContent =
             data.message;
 
@@ -618,7 +723,7 @@ socket.on("disconnect", () => {
     console.log("與伺服器中斷連線");
 });
 
-/* 掃描 QR Code 時，自動填入房號 */
+/* QR Code 網址自動填入房號 */
 const queryParameters =
     new URLSearchParams(
         window.location.search
