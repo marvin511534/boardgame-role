@@ -193,10 +193,12 @@ io.on("connection", (socket) => {
 
         socket.join(roomCode);
 
-        const localIp = getLocalIpAddress();
+        const baseUrl =
+    process.env.RENDER_EXTERNAL_URL ||
+    `http://localhost:${PORT}`;
 
         const joinUrl =
-            `http://${localIp}:${PORT}/?room=${roomCode}`;
+    `${baseUrl}/?room=${roomCode}`;
 
         try {
             const qrCodeDataUrl =
