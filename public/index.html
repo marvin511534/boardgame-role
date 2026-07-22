@@ -2,372 +2,104 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#160b0b">
     <title>桌遊身份抽籤</title>
-
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
+    <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
     <main class="container">
-
-        <!-- 首頁 -->
-        <section
-            id="homePage"
-            class="panel"
-        >
-            <div class="logo-icon">
-                🎴
-            </div>
-
+        <section id="homePage" class="panel">
+            <div class="panel-ornament"><span></span><b>◆</b><span></span></div>
+            <div class="logo-mark"><div class="logo-card logo-card-back"></div><div class="logo-card logo-card-front">🎴</div></div>
+            <p class="eyebrow">IDENTITY DRAW</p>
             <h1>桌遊身份抽籤</h1>
-
-            <p class="description">
-                房主也會參加抽籤，玩家總人數包含房主。
-            </p>
+            <p class="description">房主也會參加抽籤，玩家總人數包含房主。</p>
 
             <div class="section-box">
-                <h2 class="section-title">
-                    建立房間
-                </h2>
-
-                <label for="hostNameInput">
-                    房主名稱
-                </label>
-
-                <input
-                    id="hostNameInput"
-                    type="text"
-                    maxlength="12"
-                    autocomplete="off"
-                    placeholder="請輸入你的名稱"
-                >
-
-                <label for="playerCount">
-                    玩家總人數（包含房主）
-                </label>
-
-                <select id="playerCount">
-                    <option value="4">
-                        4 人
-                    </option>
-
-                    <option value="5">
-                        5 人
-                    </option>
-
-                    <option
-                        value="6"
-                        selected
-                    >
-                        6 人
-                    </option>
-
-                    <option value="7">
-                        7 人
-                    </option>
-
-                    <option value="8">
-                        8 人
-                    </option>
-                </select>
-
-                <div
-                    id="rolePreview"
-                    class="role-preview"
-                ></div>
-
-                <button
-                    id="createRoomButton"
-                    class="primary-button"
-                >
-                    建立房間
-                </button>
+                <div class="section-heading"><span class="section-number">01</span><h2 class="section-title">建立房間</h2></div>
+                <label for="hostNameInput">房主名稱</label>
+                <div class="input-shell"><span class="input-icon">♟</span><input id="hostNameInput" type="text" maxlength="12" autocomplete="off" placeholder="請輸入你的名稱"></div>
+                <label for="playerCount">玩家總人數（包含房主）</label>
+                <div class="input-shell"><span class="input-icon">♣</span><select id="playerCount"><option value="4">4 人</option><option value="5">5 人</option><option value="6" selected>6 人</option><option value="7">7 人</option><option value="8">8 人</option></select></div>
+                <div class="preview-label">身份配置</div>
+                <div id="rolePreview" class="role-preview"></div>
+                <button id="createRoomButton" class="primary-button"><span>建立房間</span><span class="button-arrow">→</span></button>
             </div>
 
-            <div class="divider">
-                或
-            </div>
+            <div class="divider"><span>或</span></div>
 
             <div class="section-box">
-                <h2 class="section-title">
-                    加入房間
-                </h2>
-
-                <label for="roomCodeInput">
-                    房號
-                </label>
-
-                <input
-                    id="roomCodeInput"
-                    type="text"
-                    maxlength="6"
-                    autocomplete="off"
-                    placeholder="例如 ABC123"
-                >
-
-                <label for="playerNameInput">
-                    玩家名稱
-                </label>
-
-                <input
-                    id="playerNameInput"
-                    type="text"
-                    maxlength="12"
-                    autocomplete="off"
-                    placeholder="請輸入名稱"
-                >
-
-                <button
-                    id="joinRoomButton"
-                    class="join-button"
-                >
-                    加入房間
-                </button>
+                <div class="section-heading"><span class="section-number">02</span><h2 class="section-title">加入房間</h2></div>
+                <label for="roomCodeInput">房號</label>
+                <div class="input-shell"><span class="input-icon">#</span><input id="roomCodeInput" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="例如 ABC123"></div>
+                <label for="playerNameInput">玩家名稱</label>
+                <div class="input-shell"><span class="input-icon">♙</span><input id="playerNameInput" type="text" maxlength="12" autocomplete="off" placeholder="請輸入名稱"></div>
+                <button id="joinRoomButton" class="join-button"><span>加入房間</span><span class="button-arrow">→</span></button>
             </div>
-
-            <p
-                id="homeMessage"
-                class="message"
-            ></p>
+            <p id="homeMessage" class="message"></p>
         </section>
 
-        <!-- 房主等待畫面 -->
-        <section
-            id="hostRoomPage"
-            class="panel hidden"
-        >
-            <div class="status-badge">
-                房主兼玩家
-            </div>
-
+        <section id="hostRoomPage" class="panel hidden">
+            <div class="panel-ornament"><span></span><b>◆</b><span></span></div>
+            <div class="status-badge"><span class="status-dot"></span>房主兼玩家</div>
+            <p class="eyebrow">ROOM CREATED</p>
             <h1>房間建立成功</h1>
-
-            <p class="small-label">
-                房號
-            </p>
-
-            <div
-                id="hostRoomCode"
-                class="room-code"
-            ></div>
-
-            <img
-                id="qrCodeImage"
-                class="qr-code"
-                alt="加入房間 QR Code"
-            >
-
-            <p class="small-label">
-                玩家加入網址
-            </p>
-
-            <p
-                id="joinUrl"
-                class="join-url"
-            ></p>
-
-            <div class="player-header">
-                <h2>玩家名單</h2>
-
-                <span
-                    id="playerProgress"
-                    class="player-progress"
-                >
-                    1 / 0
-                </span>
-            </div>
-
-            <ul
-                id="playerList"
-                class="player-list"
-            ></ul>
-
-            <button
-                id="startGameButton"
-                class="primary-button"
-                disabled
-            >
-                等待玩家加入
-            </button>
-
-            <button
-                id="closeRoomButton"
-                class="danger-outline-button"
-            >
-                關閉房間
-            </button>
-
-            <p
-                id="hostMessage"
-                class="message"
-            ></p>
+            <div class="room-code-card"><p class="small-label">房號</p><div id="hostRoomCode" class="room-code"></div></div>
+            <div class="qr-frame"><i class="corner corner-tl"></i><i class="corner corner-tr"></i><i class="corner corner-bl"></i><i class="corner corner-br"></i><img id="qrCodeImage" class="qr-code" alt="加入房間 QR Code"></div>
+            <p class="small-label">掃描 QR Code 或開啟網址加入</p>
+            <p id="joinUrl" class="join-url"></p>
+            <div class="player-header"><div><p class="player-caption">PLAYERS</p><h2>玩家名單</h2></div><span id="playerProgress" class="player-progress">1 / 0</span></div>
+            <ul id="playerList" class="player-list"></ul>
+            <button id="startGameButton" class="primary-button" disabled>等待玩家加入</button>
+            <button id="closeRoomButton" class="danger-outline-button">關閉房間</button>
+            <p id="hostMessage" class="message"></p>
         </section>
 
-        <!-- 玩家等待畫面 -->
-        <section
-            id="waitingPage"
-            class="panel hidden"
-        >
-            <div class="logo-icon">
-                ✅
-            </div>
-
+        <section id="waitingPage" class="panel hidden">
+            <div class="panel-ornament"><span></span><b>◆</b><span></span></div>
+            <div class="waiting-emblem">✓</div>
+            <p class="eyebrow">YOU ARE IN</p>
             <h1>加入成功</h1>
-
-            <div class="info-box">
-                <p>玩家名稱</p>
-
-                <strong
-                    id="waitingPlayerName"
-                ></strong>
-            </div>
-
-            <div class="info-box">
-                <p>房號</p>
-
-                <strong
-                    id="waitingRoomCode"
-                ></strong>
-            </div>
-
-            <p class="description">
-                請等待其他玩家加入，房主開始後，
-                你的身份會顯示在這支裝置上。
-            </p>
-
-            <div class="loading-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-
-            <p
-                id="waitingMessage"
-                class="message"
-            ></p>
+            <div class="info-grid"><div class="info-box"><p>玩家名稱</p><strong id="waitingPlayerName"></strong></div><div class="info-box"><p>房號</p><strong id="waitingRoomCode"></strong></div></div>
+            <p class="description">請等待其他玩家加入。房主開始後，你的身份會顯示在這支裝置上。</p>
+            <div class="loading-dots"><span></span><span></span><span></span></div>
+            <p id="waitingMessage" class="message"></p>
         </section>
 
-        <!-- 身份畫面 -->
-        <section
-            id="rolePage"
-            class="panel hidden"
-        >
-            <p class="small-label">
-                你的身份
-            </p>
-
-            <div
-                id="roleCard"
-                class="role-card"
-            >
-                <div
-                    id="roleIcon"
-                    class="role-icon"
-                >
-                    🎴
-                </div>
-
-                <div
-                    id="roleName"
-                    class="role-name"
-                ></div>
-            </div>
-
-            <p class="description">
-                請記住自己的身份，不要讓其他玩家看到。
-            </p>
-
-            <button
-                id="hideRoleButton"
-                class="primary-button"
-            >
-                我記住了，隱藏身份
-            </button>
+        <section id="rolePage" class="panel role-reveal-panel hidden">
+            <div class="panel-ornament"><span></span><b>◆</b><span></span></div>
+            <p class="eyebrow">SECRET IDENTITY</p>
+            <h1>你的身份</h1>
+            <div id="roleCard" class="role-card"><div class="role-card-pattern"></div><div class="role-card-inner"><div id="roleIcon" class="role-icon">🎴</div><div id="roleName" class="role-name"></div><div class="role-card-divider"></div><p>僅供本人查看</p></div></div>
+            <p class="description">請記住自己的身份，不要讓其他玩家看到。</p>
+            <button id="hideRoleButton" class="primary-button">我記住了，隱藏身份</button>
         </section>
 
-        <!-- 一般玩家身份隱藏 -->
-        <section
-            id="roleHiddenPage"
-            class="panel hidden"
-        >
-            <div class="logo-icon">
-                🔒
-            </div>
-
+        <section id="roleHiddenPage" class="panel hidden">
+            <div class="panel-ornament"><span></span><b>◆</b><span></span></div>
+            <div class="locked-card"><div class="locked-card-symbol">✦</div><div class="locked-card-lock">🔒</div></div>
+            <p class="eyebrow">IDENTITY HIDDEN</p>
             <h1>身份已隱藏</h1>
-
-            <p class="description">
-                請將裝置放好，準備開始遊戲。
-            </p>
-
-            <button
-                id="showRoleAgainButton"
-                class="secondary-button"
-            >
-                再次查看身份
-            </button>
+            <p class="description">請將裝置放好，準備開始遊戲。</p>
+            <button id="showRoleAgainButton" class="secondary-button">再次查看身份</button>
         </section>
 
-        <!-- 房主遊戲控制畫面 -->
-        <section
-            id="hostStartedPage"
-            class="panel hidden"
-        >
-            <div class="logo-icon">
-                ✅
-            </div>
-
+        <section id="hostStartedPage" class="panel hidden">
+            <div class="panel-ornament"><span></span><b>◆</b><span></span></div>
+            <div class="waiting-emblem crown-emblem">♛</div>
+            <p class="eyebrow">GAME READY</p>
             <h1>身份分配完成</h1>
-
-            <p class="description">
-                所有玩家都已收到身份，包含房主。
-            </p>
-
-            <div class="info-box">
-                <p>房號</p>
-
-                <strong
-                    id="startedRoomCode"
-                ></strong>
-            </div>
-
-            <button
-                id="hostShowRoleButton"
-                class="secondary-button"
-            >
-                再次查看我的身份
-            </button>
-
-            <button
-                id="restartGameButton"
-                class="primary-button"
-                style="margin-top: 12px;"
-            >
-                重新抽取身份
-            </button>
-
-            <button
-                id="closeStartedRoomButton"
-                class="danger-outline-button"
-            >
-                關閉房間
-            </button>
-
-            <p
-                id="startedMessage"
-                class="message"
-            ></p>
+            <p class="description">所有玩家都已收到身份，包含房主。</p>
+            <div class="info-box room-control-box"><p>目前房號</p><strong id="startedRoomCode"></strong></div>
+            <button id="hostShowRoleButton" class="secondary-button">再次查看我的身份</button>
+            <button id="restartGameButton" class="primary-button spaced-button">重新抽取身份</button>
+            <button id="closeStartedRoomButton" class="danger-outline-button">關閉房間</button>
+            <p id="startedMessage" class="message"></p>
         </section>
-
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
