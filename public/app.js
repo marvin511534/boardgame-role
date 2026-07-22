@@ -149,9 +149,16 @@ function renderPlayerList(players) {
     players.forEach((player, index) => {
         const listItem = document.createElement("li");
         const hostText = player.isHost ? "（房主）" : "";
-        const connectionText = player.connected ? "" : "　⚠️ 暫時離線";
-        listItem.textContent =
-            `${index + 1}. ${player.name}${hostText}${connectionText}`;
+
+        if (player.isHost) {
+            listItem.classList.add("host-player");
+        }
+
+        if (!player.connected) {
+            listItem.classList.add("offline-player");
+        }
+
+        listItem.textContent = `${index + 1}. ${player.name}${hostText}`;
         playerList.appendChild(listItem);
     });
 }
